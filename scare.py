@@ -13,6 +13,7 @@ Override on the night without restarting:  echo gentle > ~/scare/mode   (rm it t
 Usage:
   scare.py              run forever, waiting for motion
   scare.py --test       play one random sound and exit
+  scare.py --all        play every sound once, in order, and exit
   scare.py --simulate   no sensor needed: press Enter to fake a trigger
 """
 import argparse
@@ -30,11 +31,10 @@ SOUND_DIR = Path(os.environ.get("SCARE_SOUNDS", Path(__file__).parent / "sounds"
 PIR_PIN = int(os.environ.get("SCARE_PIN", "4"))
 COOLDOWN = float(os.environ.get("SCARE_COOLDOWN", "8"))  # seconds between scares
 BT_SPEAKER = os.environ.get("SCARE_BT_SPEAKER", "")  # MAC of Bluetooth speaker, empty = none
-KEEPALIVE = float(os.environ.get("SCARE_KEEPALIVE", "240"))  # seconds; stops BT speaker auto-sleep
+KEEPALIVE = float(os.environ.get("SCARE_KEEPALIVE", "240"))  # seconds between Bluetooth connection checks
+HUM_VOLUME = os.environ.get("SCARE_HUM_VOLUME", "0.15")  # sub-bass hum that stops BT speaker standby; raise if it still sleeps
 SCARY_AFTER = os.environ.get("SCARE_SCARY_AFTER", "19:30")  # HH:MM when auto mode turns scary
 GENTLE_VOLUME = os.environ.get("SCARE_GENTLE_VOLUME", "0.6")
-AMBIENT_VOLUME = os.environ.get("SCARE_AMBIENT_VOLUME", "0.25")  # background hush; "0" turns it off
-AMBIENT_HOURS = os.environ.get("SCARE_AMBIENT_HOURS", "17:00-23:00")  # when the hush plays
 COMBO_CHANCE = float(os.environ.get("SCARE_COMBO_CHANCE", "0.6"))  # chance a scare layers two sounds
 MODE_FILE = Path(__file__).parent / "mode"
 SOUND_EXTS = {".wav", ".mp3", ".ogg", ".flac", ".m4a"}
@@ -113,8 +113,8 @@ def bt_connected(mac):
     return "Connected: yes" in info
 
 
-def keep_speaker_alive(mac, silence):
-    """Reconnect the Bluetooth speaker if it drops, and play near-silence so it never auto-sleeps."""
+def keep_speaker_alive(mac):
+    """Reconnect the Bluetooth speaker if it drops."""
     failures = 0
     while True:
         if not bt_connected(mac):
@@ -133,27 +133,17 @@ def keep_speaker_alive(mac, silence):
         else:
             if failures:
                 log.info("Speaker reconnected")
+                reset_speaker_volume()
             failures = 0
-            if not ambient_active():  # while the hush plays it already keeps the speaker awake
-                subprocess.run(pw_play_cmd("--volume", "0.02", str(silence)), check=False)
         time.sleep(KEEPALIVE if bt_connected(mac) else 30)
 
 
-def ambient_active():
-    if float(AMBIENT_VOLUME) <= 0:
-        return False
-    start, end = AMBIENT_HOURS.split("-")
-    return start <= datetime.now().strftime("%H:%M") < end
-
-
-def loop_ambient(path):
-    """Loop the background hush during AMBIENT_HOURS; scares play on top. Also keeps a BT speaker awake."""
+def hold_speaker_open(hum):
+    """Stream a 25 Hz hum nonstop: too low for a small speaker to reproduce, but it keeps the speaker
+    out of standby and stops PipeWire suspending the Bluetooth sink (waking it adds 1-2s to every scare)."""
     while True:
-        if not ambient_active():
-            time.sleep(30)
-            continue
         started = time.monotonic()
-        subprocess.run(pw_play_cmd("--volume", AMBIENT_VOLUME, str(path)), check=False)
+        subprocess.run(pw_play_cmd("--volume", HUM_VOLUME, str(hum)), check=False)
         if time.monotonic() - started < 5:  # playback failed (e.g. speaker gone); don't spin
             time.sleep(10)
 
@@ -166,7 +156,7 @@ class Scarer:
 
     def scare(self):
         if time.monotonic() - self.last_time < COOLDOWN:
-            return
+            return False
         mode = current_mode(self.forced_mode)
         sounds = load_sounds(mode)  # re-read each time so new files and mode changes apply live
         choices = [s for s in sounds if s not in self.last] or sounds
@@ -181,15 +171,17 @@ class Scarer:
         else:
             picked = random.sample(choices, count)
         self.last = picked
-        reset_speaker_volume()
+        threading.Thread(target=reset_speaker_volume, daemon=True).start()  # pw-dump is slow; don't delay the scare
         log.info("BOO! [%s] playing %s", mode, " + ".join(p.name for p in picked))
         play_combo(picked, GENTLE_VOLUME if mode == "gentle" else "1.0")
         self.last_time = time.monotonic()
+        return True
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--test", action="store_true", help="play one sound and exit")
+    parser.add_argument("--all", action="store_true", help="play every sound once in order and exit")
     parser.add_argument("--simulate", action="store_true", help="press Enter to fake motion")
     parser.add_argument("--mode", choices=["gentle", "scary"], help="force a mode instead of auto")
     args = parser.parse_args()
@@ -199,19 +191,28 @@ def main():
     mode = current_mode(args.mode)
     log.info("Mode now: %s (%d sounds). Auto turns scary at %s", mode, len(load_sounds(mode)), SCARY_AFTER)
 
+    if args.all:
+        reset_speaker_volume()
+        volume = GENTLE_VOLUME if mode == "gentle" else "1.0"
+        sounds = load_sounds(mode)
+        for i, path in enumerate(sounds, 1):
+            log.info("(%d/%d) %s", i, len(sounds), path.name)
+            play(path, volume)
+            time.sleep(1)
+        return
+
     if BT_SPEAKER and not args.test:
-        silence = Path(__file__).parent / "keepalive.wav"
-        threading.Thread(target=keep_speaker_alive, args=(BT_SPEAKER, silence), daemon=True).start()
+        threading.Thread(target=keep_speaker_alive, args=(BT_SPEAKER,), daemon=True).start()
         log.info("Keeping Bluetooth speaker %s connected and awake", BT_SPEAKER)
+        hum = Path(__file__).parent / "hum.wav"
+        if hum.exists():
+            threading.Thread(target=hold_speaker_open, args=(hum,), daemon=True).start()
+        else:
+            log.warning("%s missing (run make_sounds.sh); speaker may sleep and scares will lag", hum)
 
     if args.test:
         scarer.scare()
         return
-
-    ambient = Path(__file__).parent / "ambient.wav"
-    if float(AMBIENT_VOLUME) > 0 and ambient.exists():
-        threading.Thread(target=loop_ambient, args=(ambient,), daemon=True).start()
-        log.info("Background hush %s at volume %s", AMBIENT_HOURS, AMBIENT_VOLUME)
 
     if args.simulate:
         log.info("Simulate mode: press Enter to trigger, Ctrl+C to quit")
@@ -227,7 +228,8 @@ def main():
     log.info("Armed. Cooldown %.0fs.", COOLDOWN)
     while True:
         pir.wait_for_motion()
-        scarer.scare()
+        if not scarer.scare():
+            time.sleep(0.2)  # still cooling down and PIR is held high; don't spin
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ After=pipewire.service wireplumber.service
 [Service]
 WorkingDirectory=%h/scare
 Environment=SCARE_BT_SPEAKER=30:22:21:04:EC:80
-Environment=SCARE_AMBIENT_VOLUME=0.12
+Environment=SCARE_HUM_VOLUME=0.15
 ExecStart=/usr/bin/python3 %h/scare/scare.py
 Restart=always
 RestartSec=3
