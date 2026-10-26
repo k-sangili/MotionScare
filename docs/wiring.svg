@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 390" width="780" height="390" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>MotionScare wiring: PIR sensor to Raspberry Pi GPIO, Bluetooth speaker</title>
+  <rect width="780" height="390" rx="14" fill="#1b1714"/>
+
+  <!-- Raspberry Pi -->
+  <rect x="30" y="50" width="300" height="280" rx="12" fill="#1f5130"/>
+  <text x="50" y="312" fill="#f3e9dc" font-size="15" font-weight="600">Raspberry Pi 3B+</text>
+  <text x="190" y="72" fill="#cfe3d3" font-size="11" text-anchor="middle">GPIO header, pins 1–8</text>
+  <rect x="150" y="80" width="80" height="130" rx="4" fill="#111"/>
+  <g fill="#c9a227">
+    <circle cx="175" cy="100" r="7"/><circle cx="205" cy="100" r="7"/>
+    <circle cx="175" cy="130" r="7"/><circle cx="205" cy="130" r="7"/>
+    <circle cx="175" cy="160" r="7"/><circle cx="205" cy="160" r="7"/>
+    <circle cx="175" cy="190" r="7"/><circle cx="205" cy="190" r="7"/>
+  </g>
+  <g fill="#cfe3d3" font-size="12" text-anchor="end">
+    <text x="160" y="104" opacity="0.55">3V3 · 1</text>
+    <text x="160" y="134" opacity="0.55">GPIO2 · 3</text>
+    <text x="160" y="164" opacity="0.55">GPIO3 · 5</text>
+    <text x="160" y="194" fill="#f5c542" font-weight="700">GPIO4 · 7</text>
+  </g>
+  <g fill="#cfe3d3" font-size="11">
+    <text x="216" y="92" fill="#ff8a8d" font-weight="700">2 · 5V</text>
+    <text x="216" y="122" opacity="0.55">4 · 5V</text>
+    <text x="216" y="152" fill="#c4c9ce" font-weight="700">6 · GND</text>
+    <text x="216" y="182" opacity="0.55">8 · GPIO14</text>
+  </g>
+
+  <!-- Wires -->
+  <g fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M205 100 H400 V150 H490" stroke="#e5484d"/>
+    <path d="M205 160 H370 V250 H490" stroke="#9aa0a6"/>
+    <path d="M355 240 H385" stroke="#1b1714" stroke-width="13" stroke-linecap="butt"/>
+    <path d="M175 190 V240 H430 V200 H490" stroke="#f5c542"/>
+  </g>
+
+  <!-- PIR sensor -->
+  <rect x="490" y="120" width="140" height="160" rx="8" fill="#1f5130"/>
+  <g fill="#c9a227"><circle cx="490" cy="150" r="7"/><circle cx="490" cy="200" r="7"/><circle cx="490" cy="250" r="7"/></g>
+  <g fill="#f3e9dc" font-size="12" font-weight="600">
+    <text x="504" y="154">VCC</text><text x="504" y="204">OUT</text><text x="504" y="254">GND</text>
+  </g>
+  <circle cx="588" cy="200" r="34" fill="#f3efe6"/>
+  <g stroke="#d6cfc2" stroke-width="1.5" fill="none">
+    <path d="M554 200 H622 M588 166 V234 M564 176 L612 224 M612 176 L564 224"/>
+  </g>
+  <text x="560" y="304" fill="#f3e9dc" font-size="14" font-weight="600" text-anchor="middle">PIR motion sensor</text>
+  <text x="560" y="322" fill="#cfc4b6" font-size="11" text-anchor="middle">HC-SR501 or similar</text>
+
+  <!-- Bluetooth speaker -->
+  <path d="M330 70 H666" stroke="#7aa7ff" stroke-width="2.5" stroke-dasharray="7 6" fill="none"/>
+  <text x="500" y="60" fill="#a9c4ff" font-size="12" text-anchor="middle">Bluetooth audio</text>
+  <rect x="670" y="38" width="64" height="64" rx="14" fill="#3a3330"/>
+  <circle cx="702" cy="70" r="20" fill="#252020"/>
+  <circle cx="702" cy="70" r="8" fill="#4a423e"/>
+  <text x="702" y="120" fill="#f3e9dc" font-size="12" text-anchor="middle">Bluetooth speaker</text>
+
+  <!-- Legend -->
+  <g font-size="12" fill="#cfc4b6">
+    <rect x="30" y="352" width="22" height="6" rx="3" fill="#e5484d"/><text x="60" y="359">5V power (pin 2 → VCC)</text>
+    <rect x="250" y="352" width="22" height="6" rx="3" fill="#f5c542"/><text x="280" y="359">signal (pin 7 / GPIO4 → OUT)</text>
+    <rect x="500" y="352" width="22" height="6" rx="3" fill="#9aa0a6"/><text x="530" y="359">ground (pin 6 → GND)</text>
+  </g>
+</svg>
