@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Render docs/sounds.png: a grid of every generated sound's waveform. Run after make_sounds.sh.
+# Render docs/sounds.png: a grid of the waveform of every sound in sounds/gentle.
 # Needs ffmpeg built with drawtext (Homebrew's is). FONT overrides the label font.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -10,8 +10,9 @@ trap 'rm -rf "$T"' EXIT
 
 i=0
 inputs=() layout=()
-for f in sounds/gentle/*.wav; do
-  name=$(basename "$f" .wav)
+shopt -s nullglob
+for f in sounds/gentle/*.{flac,wav,ogg,mp3}; do
+  name=$(basename "${f%.*}")
   secs=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f")
   label=$(printf '%s   %.1fs' "$name" "$secs")
   ffmpeg -v error -y -i "$f" -filter_complex "
