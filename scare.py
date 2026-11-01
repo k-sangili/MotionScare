@@ -29,6 +29,7 @@ from pathlib import Path
 
 SOUND_DIR = Path(os.environ.get("SCARE_SOUNDS", Path(__file__).parent / "sounds"))
 PIR_PIN = int(os.environ.get("SCARE_PIN", "4"))
+MIN_MOTION = float(os.environ.get("SCARE_MIN_MOTION", "0.5"))  # seconds the PIR must stay high; filters glitches
 COOLDOWN = float(os.environ.get("SCARE_COOLDOWN", "8"))  # seconds between scares
 BT_SPEAKER = os.environ.get("SCARE_BT_SPEAKER", "")  # MAC of Bluetooth speaker, empty = none
 KEEPALIVE = float(os.environ.get("SCARE_KEEPALIVE", "240"))  # seconds between Bluetooth connection checks
@@ -222,10 +223,12 @@ def main():
 
     from gpiozero import MotionSensor
 
-    pir = MotionSensor(PIR_PIN)
+    # gpiozero samples 10x/s; require (almost) every sample in the last MIN_MOTION seconds to be high,
+    # so a brief electrical spike no longer counts. A real PIR detection holds high for seconds.
+    pir = MotionSensor(PIR_PIN, queue_len=max(1, round(MIN_MOTION * 10)), sample_rate=10, threshold=0.9)
     log.info("Waiting for PIR on GPIO%d to settle...", PIR_PIN)
     pir.wait_for_no_motion()
-    log.info("Armed. Cooldown %.0fs.", COOLDOWN)
+    log.info("Armed. Motion must last %.1fs; cooldown %.0fs.", MIN_MOTION, COOLDOWN)
     while True:
         pir.wait_for_motion()
         if not scarer.scare():

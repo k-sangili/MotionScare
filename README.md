@@ -36,7 +36,8 @@ So I wanted something that:
 
 ## What it does
 
-1. The PIR sensor on GPIO4 detects motion.
+1. The PIR sensor on GPIO4 reports motion that lasts at least half a second. Shorter blips are
+   usually electrical noise, so they're ignored.
 2. `scare.py` picks one or two sounds and avoids whatever played last. In scary mode, if you've added
    anything to `sounds/scary/`, it always ends on one of those.
 3. It plays them through PipeWire on the Bluetooth speaker. A second sound starts 0.5–2s after the
@@ -187,6 +188,7 @@ Set these as `Environment=` lines in `scare.service`:
 | `SCARE_COOLDOWN` | `8` | Seconds between scares. |
 | `SCARE_COMBO_CHANCE` | `0.6` | Chance a scare layers two sounds. |
 | `SCARE_PIN` | `4` | PIR GPIO (BCM numbering). |
+| `SCARE_MIN_MOTION` | `0.5` | Seconds the sensor must report motion before a scare. This filters out electrical glitches. Raise it if it still triggers on its own. |
 | `SCARE_KEEPALIVE` | `240` | Seconds between Bluetooth connection checks. |
 | `SCARE_SOUNDS` | `./sounds` | Sound folder. |
 
@@ -205,6 +207,10 @@ docs/                     README images
 
 ## Troubleshooting
 
+- **Sounds play with nobody there.** It only plays when the sensor reports motion, and each trigger
+  is logged: `journalctl --user -u scare | grep BOO`. Turn the HC-SR501 sensitivity knob
+  anticlockwise, aim the sensor away from moving bushes and the street, keep it a little away
+  from the Pi, or raise `SCARE_MIN_MOTION` to 1.
 - **Lag between motion and sound.** Check the log for `hum.wav missing`. Run `make_sounds.sh`, which
   creates it. Then check the HC-SR501 knobs (see Hardware).
 - **Speaker goes to sleep anyway.** Raise `SCARE_HUM_VOLUME` (try 0.25). Some speakers need a stronger
